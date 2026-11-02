@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Factory Detective AI</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+<style>
+:root{--bg:#0b1423;--panel:#142238;--line:#2a405b;--text:#edf5ff;--muted:#9eb1c9;--cyan:#42d6e8;--green:#35d39a;--red:#ff7185}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(130deg,#142d46,#09111e 55%);color:var(--text);font:15px Arial,sans-serif;min-height:100vh}
+header{padding:22px 5%;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;align-items:center}.brand{display:flex;gap:12px;align-items:center}.logo{background:linear-gradient(135deg,var(--cyan),#4389ff);color:#071321;font-weight:bold;padding:13px;border-radius:12px;font-size:20px}h1{font-size:20px;letter-spacing:2px;margin:0}.sub,.muted{color:var(--muted);font-size:12px}.sub{letter-spacing:2px;margin-top:5px}.pill{border:1px solid #31506a;color:var(--cyan);border-radius:20px;padding:8px 12px;font-size:11px}
+main{max-width:1200px;margin:25px auto;padding:0 18px}.intro{margin-bottom:18px}.eyebrow{color:var(--cyan);font-size:11px;letter-spacing:2px}.intro h2{margin:8px 0;font-size:27px}.intro p{color:var(--muted);line-height:1.5;max-width:700px}
+.panel{background:linear-gradient(145deg,#172941,#101b2c);border:1px solid var(--line);border-radius:16px;padding:19px;margin-bottom:17px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:17px}.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}h3{font-size:13px;letter-spacing:1px;margin:0 0 14px}.status{font-size:11px;color:#ffd17b;border:1px solid #665332;padding:6px 9px;border-radius:20px}
+label{display:block;color:var(--muted);font-size:12px;margin:12px 0 7px}input[type=text]{width:100%;padding:12px;background:#0a1525;color:white;border:1px solid #354d69;border-radius:8px}
+button,.filebtn{display:inline-block;padding:11px 14px;border:0;border-radius:8px;background:var(--cyan);color:#071321;font-weight:bold;font-size:12px;cursor:pointer}button.secondary,.filebtn.secondary{background:#263b55;color:white;border:1px solid #405977}button:disabled{opacity:.4;cursor:not-allowed}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:10px}
+.preview{height:280px;background:#08111e;border:1px dashed #3a506c;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}.preview img,.preview video{max-width:100%;max-height:100%}.placeholder{text-align:center;color:var(--muted)}
+.result{background:#0a1525;border:1px solid var(--line);border-radius:12px;padding:17px;margin-top:12px}.result.good{border-color:#278464;background:#102b2a}.result.bad{border-color:#934153;background:#301a28}.result h2{font-size:21px;margin:0}.bar{height:8px;background:#263750;border-radius:20px;overflow:hidden;margin-top:9px}.bar span{display:block;height:100%;background:var(--cyan);width:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:17px 0}.stat{background:#111e30;border:1px solid var(--line);border-radius:12px;padding:14px}.stat small{color:var(--muted);letter-spacing:1px}.stat b{display:block;font-size:25px;margin-top:7px}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{text-align:left;padding:10px 7px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:normal}.tag{border-radius:20px;padding:5px 8px;font-size:10px}.tag.good{background:#163d34;color:#68e6b5}.tag.bad{background:#482432;color:#ff9cab}footer{text-align:center;color:#7589a4;font-size:11px;padding:20px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.intro h2{font-size:22px}}
+</style></head>
+<body>
+<header><div class="brand"><div class="logo">FD</div><div><h1>FACTORY DETECTIVE</h1><div class="sub">AI-POWERED QUALITY INSPECTION</div></div></div><div class="pill">INDUSTRY 4.0 • COMPUTER VISION</div></header>
+<main>
+<div class="intro"><div class="eyebrow">SMART MANUFACTURING / LIVE PROTOTYPE</div><h2>Product Inspection Command Centre</h2><p>Inspect product packaging with an image-classification model. Upload a photograph or use your webcam, view the prediction and confidence score, and maintain a digital inspection log.</p></div>
+<section class="panel"><div class="top"><h3>01 / CONNECT YOUR TRAINED AI MODEL</h3><span class="status" id="connection">Waiting for model URL</span></div><label for="modelUrl">Teachable Machine shareable model URL</label><input id="modelUrl" type="text" placeholder="https://teachablemachine.withgoogle.com/models/XXXXXXXXX/"><div class="actions"><button id="loadBtn">LOAD AI MODEL</button></div><div class="note">In Teachable Machine choose Export Model → TensorFlow.js → Upload my model. Paste the resulting shareable URL here. Use class names GOOD_PRODUCT and DEFECTIVE_PRODUCT.</div></section>
+<div class="grid">
+<section class="panel"><div class="top"><h3>02 / PRODUCT INPUT</h3><span class="status" id="mode">NO INPUT</span></div><div class="preview" id="preview"><div class="placeholder"><div style="font-size:42px">⌕</div><b>Awaiting product image</b><div class="note">Upload a photo or start webcam</div></div></div><div class="actions"><label class="filebtn" for="imageInput">UPLOAD IMAGE</label><input hidden id="imageInput" type="file" accept="image/*"><button class="secondary" id="startBtn">START WEBCAM</button><button class="secondary" id="stopBtn" disabled>STOP</button><button id="inspectBtn" disabled>INSPECT PRODUCT</button></div><div class="note">For webcam access, run this page using VS Code Live Server in Chrome. Allow camera permission when prompted.</div></section>
+<section class="panel"><h3>03 / AI INSPECTION RESULT</h3><div class="result" id="result"><div class="top"><h2 id="decision">NOT INSPECTED</h2><span id="symbol">◉</span></div><p class="muted" id="confidence">Load the model and provide an image.</p><div class="bar"><span id="bar"></span></div></div><h3 style="margin-top:20px">MODEL PREDICTIONS</h3><div id="predictions" class="muted">Predictions appear here after inspection.</div><div class="note">A prediction below 60% confidence is marked for manual review. Confidence is not a guarantee of correctness.</div></section>
+</div>
+<div class="stats"><div class="stat"><small>TOTAL INSPECTED</small><b id="total">0</b></div><div class="stat"><small>ACCEPTED</small><b id="good" style="color:var(--green)">0</b></div><div class="stat"><small>DEFECTIVE / REVIEW</small><b id="bad" style="color:var(--red)">0</b></div></div>
+<section class="panel"><div class="top"><h3>04 / INSPECTION HISTORY</h3><div class="actions"><button class="secondary" id="csvBtn">DOWNLOAD CSV</button><button class="secondary" id="clearBtn">CLEAR LOG</button></div></div><div style="overflow-x:auto"><table><thead><tr><th>TIME</th><th>INPUT</th><th>PREDICTED CLASS</th><th>CONFIDENCE</th><th>DECISION</th></tr></thead><tbody id="history"><tr><td colspan="5" class="muted">No inspections recorded yet.</td></tr></tbody></table></div></section>
+</main><footer>FACTORY DETECTIVE AI • Academic Industry 4.0 prototype • Not certified industrial equipment</footer>
+<script>
+let model=null,currentInput=null,stream=null,records=[];
+const el=id=>document.getElementById(id);
+function msg(t,error=false){el('connection').textContent=t;el('connection').style.color=error?'#ff7185':'#ffd17b'}
+function norm(s){return String(s).toLowerCase().replace(/[^a-z]/g,'')}
+function defect(s){s=norm(s);return ['defect','damag','reject','bad','fault','crack','broken'].some(x=>s.includes(x))}
+function good(s){s=norm(s);return ['good','accept','normal','intact','undamaged'].some(x=>s.includes(x))}
+el('loadBtn').onclick=async()=>{
+ let url=el('modelUrl').value.trim();if(!url){msg('Paste your model URL first',true);return}
+ if(!url.startsWith('https://teachablemachine.withgoogle.com/models/')){msg('Check the Teachable Machine URL',true);return}
+ el('loadBtn').disabled=true;msg('Loading model…');
+ try{url=url.endsWith('/')?url:url+'/';model=await tmImage.load(url+'model.json',url+'metadata.json');msg('Model loaded successfully');el('inspectBtn').disabled=!currentInput}
+ catch(e){console.error(e);model=null;msg('Could not load model. Check URL and internet.',true);alert('Model load failed. Make sure you uploaded it in Teachable Machine and copied the full shareable URL.')}
+ finally{el('loadBtn').disabled=false}
+};
+el('imageInput').onchange=e=>{
+ const f=e.target.files[0];if(!f)return;if(!f.type.startsWith('image/'))return alert('Choose an image file.');
+ stopCamera();const reader=new FileReader();reader.onload=ev=>{const img=new Image();img.onload=()=>{currentInput=img;el('preview').replaceChildren(img);img.style.maxWidth='100%';img.style.maxHeight='100%';el('mode').textContent='IMAGE UPLOAD';el('inspectBtn').disabled=!model;reset('IMAGE READY — CLICK INSPECT')};img.src=ev.target.result};reader.readAsDataURL(f)
+};
+async function startCamera(){
+ if(!navigator.mediaDevices?.getUserMedia)return alert('Camera unavailable. Run with VS Code Live Server in Chrome.');
+ try{stopCamera();stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});const v=document.createElement('video');v.autoplay=true;v.playsInline=true;v.muted=true;v.srcObject=stream;await v.play();currentInput=v;el('preview').replaceChildren(v);v.style.maxWidth='100%';v.style.maxHeight='100%';el('mode').textContent='LIVE WEBCAM';el('startBtn').disabled=true;el('stopBtn').disabled=false;el('inspectBtn').disabled=!model;reset('CAMERA READY — CLICK INSPECT')}
+ catch(e){console.error(e);alert('Camera access failed. Allow camera permission in Chrome and close other camera apps.')}
+}
+function stopCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}el('startBtn').disabled=false;el('stopBtn').disabled=true}
+el('startBtn').onclick=startCamera;el('stopBtn').onclick=stopCamera;
+function reset(t){el('result').className='result';el('decision').textContent=t;el('symbol').textContent='◉';el('confidence').textContent='Ready for inspection.';el('bar').style.width='0%';el('predictions').textContent='Predictions appear here after inspection.'}
+el('inspectBtn').onclick=async()=>{
+ if(!model||!currentInput)return;el('inspectBtn').disabled=true;el('decision').textContent='ANALYSING…';
+ try{
+  const p=await model.predict(currentInput);p.sort((a,b)=>b.probability-a.probability);const top=p[0],pct=top.probability*100;
+  let result='MANUAL REVIEW';if(pct>=60){if(defect(top.className))result='DEFECTIVE';else if(good(top.className))result='ACCEPTED';else{const d=p.find(x=>defect(x.className)),g=p.find(x=>good(x.className));if(d&&g)result=top===d?'DEFECTIVE':'ACCEPTED'}}
+  show(result,top.className,pct,p);records.unshift({time:new Date().toLocaleString(),input:el('mode').textContent,label:top.className,confidence:pct.toFixed(1),result});renderHistory()
+ }catch(e){console.error(e);alert('Inspection failed. Try another image or reload the model.')}
+ finally{el('inspectBtn').disabled=!model||!currentInput}
+};
+function show(r,label,pct,p){
+ el('result').className='result '+(r==='ACCEPTED'?'good':r==='DEFECTIVE'?'bad':'');el('decision').textContent=r;el('symbol').textContent=r==='ACCEPTED'?'✓':r==='DEFECTIVE'?'✕':'!';
+ el('confidence').textContent='Top class: '+label+' • Confidence: '+pct.toFixed(1)+'%';el('bar').style.width=pct+'%';
+ el('predictions').innerHTML=p.map(x=>`<div style="margin:9px 0"><div class="top"><span>${safe(x.className)}</span><b>${(x.probability*100).toFixed(1)}%</b></div><div class="bar"><span style="width:${x.probability*100}%"></span></div></div>`).join('')
+}
+function safe(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function renderHistory(){
+ const accepted=records.filter(x=>x.result==='ACCEPTED').length;el('total').textContent=records.length;el('good').textContent=accepted;el('bad').textContent=records.length-accepted;
+ el('history').innerHTML=records.length?records.map(x=>`<tr><td>${safe(x.time)}</td><td>${safe(x.input)}</td><td>${safe(x.label)}</td><td>${x.confidence}%</td><td><span class="tag ${x.result==='ACCEPTED'?'good':'bad'}">${x.result}</span></td></tr>`).join(''):'<tr><td colspan="5" class="muted">No inspections recorded yet.</td></tr>'
+}
+el('csvBtn').onclick=()=>{
+ if(!records.length)return alert('No inspection records yet.');
+ const rows=[['Time','Input','Predicted class','Confidence (%)','Decision'],...records.map(x=>[x.time,x.input,x.label,x.confidence,x.result])];
+ const csv=rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');const u=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.href=u;a.download='factory_detective_inspection_report.csv';a.click();URL.revokeObjectURL(u)
+};
+el('clearBtn').onclick=()=>{if(confirm('Clear all inspection records?')){records=[];renderHistory()}};
+window.addEventListener('beforeunload',stopCamera);
+</script></body></html>
