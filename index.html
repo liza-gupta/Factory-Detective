@@ -23,7 +23,21 @@ table{width:100%;border-collapse:collapse;font-size:12px}td,th{text-align:left;p
 <header><div class="brand"><div class="logo">FD</div><div><h1>FACTORY DETECTIVE</h1><div class="sub">AI-POWERED QUALITY INSPECTION</div></div></div><div class="pill">INDUSTRY 4.0 • COMPUTER VISION</div></header>
 <main>
 <div class="intro"><div class="eyebrow">SMART MANUFACTURING / LIVE PROTOTYPE</div><h2>Product Inspection Command Centre</h2><p>Inspect product packaging with an image-classification model. Upload a photograph or use your webcam, view the prediction and confidence score, and maintain a digital inspection log.</p></div>
-<section class="panel"><div class="top"><h3>01 / CONNECT YOUR TRAINED AI MODEL</h3><span class="status" id="connection">Waiting for model URL</span></div><label for="modelUrl">Teachable Machine shareable model URL</label><input id="modelUrl" type="text" placeholder="https://teachablemachine.withgoogle.com/models/XXXXXXXXX/"><div class="actions"><button id="loadBtn">LOAD AI MODEL</button></div><div class="note">In Teachable Machine choose Export Model → TensorFlow.js → Upload my model. Paste the resulting shareable URL here. Use class names GOOD_PRODUCT and DEFECTIVE_PRODUCT.</div></section>
+<section class="panel">
+<div class="top">
+<h3>01 / AI MODEL CONNECTION</h3>
+<span class="status" id="connection">Loading AI model...</span>
+</div>
+
+<div class="note">
+Factory Detective automatically loads its trained AI model.
+No external model URL is required.
+</div>
+
+<div class="actions">
+<button id="loadBtn">RELOAD AI MODEL</button>
+</div>
+</section>
 <div class="grid">
 <section class="panel"><div class="top"><h3>02 / PRODUCT INPUT</h3><span class="status" id="mode">NO INPUT</span></div><div class="preview" id="preview"><div class="placeholder"><div style="font-size:42px">⌕</div><b>Awaiting product image</b><div class="note">Upload a photo or start webcam</div></div></div><div class="actions"><label class="filebtn" for="imageInput">UPLOAD IMAGE</label><input hidden id="imageInput" type="file" accept="image/*"><button class="secondary" id="startBtn">START WEBCAM</button><button class="secondary" id="stopBtn" disabled>STOP</button><button id="inspectBtn" disabled>INSPECT PRODUCT</button></div><div class="note">For webcam access, run this page using VS Code Live Server in Chrome. Allow camera permission when prompted.</div></section>
 <section class="panel"><h3>03 / AI INSPECTION RESULT</h3><div class="result" id="result"><div class="top"><h2 id="decision">NOT INSPECTED</h2><span id="symbol">◉</span></div><p class="muted" id="confidence">Load the model and provide an image.</p><div class="bar"><span id="bar"></span></div></div><h3 style="margin-top:20px">MODEL PREDICTIONS</h3><div id="predictions" class="muted">Predictions appear here after inspection.</div><div class="note">A prediction below 60% confidence is marked for manual review. Confidence is not a guarantee of correctness.</div></section>
@@ -38,14 +52,57 @@ function msg(t,error=false){el('connection').textContent=t;el('connection').styl
 function norm(s){return String(s).toLowerCase().replace(/[^a-z]/g,'')}
 function defect(s){s=norm(s);return ['defect','damag','reject','bad','fault','crack','broken'].some(x=>s.includes(x))}
 function good(s){s=norm(s);return ['good','accept','normal','intact','undamaged'].some(x=>s.includes(x))}
-el('loadBtn').onclick=async()=>{
- let url=el('modelUrl').value.trim();if(!url){msg('Paste your model URL first',true);return}
- if(!url.startsWith('https://teachablemachine.withgoogle.com/models/')){msg('Check the Teachable Machine URL',true);return}
- el('loadBtn').disabled=true;msg('Loading model…');
- try{url=url.endsWith('/')?url:url+'/';model=await tmImage.load(url+'model.json',url+'metadata.json');msg('Model loaded successfully');el('inspectBtn').disabled=!currentInput}
- catch(e){console.error(e);model=null;msg('Could not load model. Check URL and internet.',true);alert('Model load failed. Make sure you uploaded it in Teachable Machine and copied the full shareable URL.')}
- finally{el('loadBtn').disabled=false}
-};
+async function loadModel(){
+
+    el('loadBtn').disabled=true;
+    msg('Loading AI model...');
+
+    try{
+
+        const modelURL = new URL(
+            'model.json',
+            window.location.href
+        ).href;
+
+        const metadataURL = new URL(
+            'metadata.json',
+            window.location.href
+        ).href;
+
+        model = await tmImage.load(
+            modelURL,
+            metadataURL
+        );
+
+        msg('AI Model Loaded Successfully');
+
+        el('inspectBtn').disabled = !currentInput;
+
+    }
+    catch(error){
+
+        console.error(error);
+
+        model = null;
+
+        msg('Model loading failed', true);
+
+        alert('Unable to load the AI model. Please refresh the page.');
+
+    }
+
+    finally{
+
+        el('loadBtn').disabled=false;
+
+    }
+
+}
+
+el('loadBtn').onclick=loadModel;
+
+// Automatically load the model when Factory Detective opens.
+loadModel();
 el('imageInput').onchange=e=>{
  const f=e.target.files[0];if(!f)return;if(!f.type.startsWith('image/'))return alert('Choose an image file.');
  stopCamera();const reader=new FileReader();reader.onload=ev=>{const img=new Image();img.onload=()=>{currentInput=img;el('preview').replaceChildren(img);img.style.maxWidth='100%';img.style.maxHeight='100%';el('mode').textContent='IMAGE UPLOAD';el('inspectBtn').disabled=!model;reset('IMAGE READY — CLICK INSPECT')};img.src=ev.target.result};reader.readAsDataURL(f)
